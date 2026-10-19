@@ -1,0 +1,44 @@
+"""
+1) Organize water bills.
+
+All the actual logic now lives in water_common.py, which sits directly in
+the water_bills/ folder.
+"""
+
+import sys
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+WATER_BILLS_ROOT = SCRIPT_DIR.parent   # water_bills/  <- where water_common.py lives
+sys.path.insert(0, str(WATER_BILLS_ROOT))
+
+import config
+from water_common import organize_bills, load_max_date, filter_already_billed_by_date
+
+
+def main():
+    folder = sys.argv[1] if len(sys.argv) > 1 else str(config.SOURCE_DIR)
+
+    print("Water Bill Organizer")
+    print("=" * 70)
+    # print(f"Working folder:\n  {folder}\n")
+
+    max_date = load_max_date(config.MAX_DATE_CSV)
+    filter_already_billed_by_date(
+        folder_path=folder,
+        duplicate_dir=config.DUPLICATE_DIR,
+        max_date=max_date,
+        get_bill_date=config.get_bill_date,
+    )
+
+    organize_bills(
+        folder_path=folder,
+        archive_dir=config.ARCHIVE_DIR,
+        duplicate_dir=config.DUPLICATE_DIR,
+        filename_suffix=config.FILENAME_SUFFIX,
+        extract_bill_info=config.extract_bill_info,
+    )
+
+
+if __name__ == "__main__":
+    main()
