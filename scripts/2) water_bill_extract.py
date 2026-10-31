@@ -61,7 +61,13 @@ def extract_usage_profile(text):
     date_str, thousands_gal, days = match.groups()
     return date_str, int(thousands_gal), int(days)
 
-def extract_fields_from_text(text, filename):
+def extract_sewer_usage(text):
+    matches = re.findall(r"Sewer Volume Charge\s*-\s*([\d\.,]+)\s*Kgal", text)
+    if not matches:
+        return None
+    return int(round(sum(float(m.replace(",", "")) for m in matches)))
+
+def extract_fields_from_text(text, filename, back_text=""):
     """Pull every column for one bill out of its first-page text."""
     try:
         account_no = extract_account_no(text)
@@ -70,6 +76,7 @@ def extract_fields_from_text(text, filename):
         current_charges = extract_current_charges(text)
         payments = extract_payments(text)
         date_str, thousands_gal, days = extract_usage_profile(text)
+        sewer_usage = extract_sewer_usage(back_text)
     except Exception as e:
         print(f"Error processing {filename}: {e}")
         return None
@@ -83,11 +90,14 @@ def extract_fields_from_text(text, filename):
         "sewer_charges": sewer_charges,
         "payments": payments,
         "current_charges": current_charges,
+        "water_usage": thousands_gal,
+        "sewer_usage": sewer_usage,
     }
 
     if any(v is None for v in fields.values()):
         missing = [k for k, v in fields.items() if v is None]
-        print(f"Warning: {filename} missing field(s): {', '.join(missing)}")
+        # debgug stuff ignore
+        # print(f"Warning: {filename} missing field(s): {', '.join(missing)}")
         return None
 
     return fields
@@ -121,8 +131,9 @@ def extract_all_bills(input_folder):
             if not text.strip():
                 print(f"No text extracted from {os.path.basename(pdf_path)}")
                 continue
+            back_text = reader.pages[1].extract_text() if len(reader.pages) > 1 else ""
 
-            fields = extract_fields_from_text(text, os.path.basename(pdf_path))
+            fields = extract_fields_from_text(text, os.path.basename(pdf_path), back_text or "")
             if fields:
                 all_data.append(fields)
 
@@ -248,9 +259,20 @@ def reorder_columns(df):
     desired_order = [
         "account_no", "date", "thousands_gal", "days",
         "water_charges", "sewer_charges", "payments", "current_charges",
-        "water_charges_adjusted", "sewer_charges_adjusted", "note",
+        "water_charges_adjusted", "sewer_charges_adjusted", "note", "water_usage", "sewer_usage",
     ]
     return df[[c for c in desired_order if c in df.columns]]
+
+def keep_latest_outputs(output_path, keep=2):
+    """Delete all but the `keep` most recent timestamped CSVs for this output."""
+    pattern = f"{output_path.stem}_????????_??????{output_path.suffix}"
+    files = sorted(output_path.parent.glob(pattern), key=lambda p: p.stat().st_mtime, reverse=True)
+    for old in files[keep:]:
+        try:
+            old.unlink()
+            print(f"Deleted old output: {old.name}")
+        except OSError as e:
+            print(f"Could not delete {old.name}: {e}")
 
 
 # === Run pipeline ===
@@ -276,6 +298,7 @@ if __name__ == "__main__":
     output_path.parent.mkdir(parents=True, exist_ok=True)
     timestamped = output_path.parent / f"{output_path.stem}_{timestamp}{output_path.suffix}"
     df.to_csv(timestamped, index=False)
+    keep_latest_outputs(output_path, keep=2)
 
     print("Processing complete!")
     print(f"Saved final CSV file as: {timestamped}")

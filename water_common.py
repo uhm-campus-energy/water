@@ -520,12 +520,18 @@ def upload_csv_to_database():
     except Exception as e:
         print(f"[WARN] Could not clean up old CSVs: {e}")
 
+    COLS = (
+    "account_no, date, thousands_gal, days, water_charges, sewer_charges, "
+    "payments, current_charges, water_charges_adjusted, sewer_charges_adjusted, "
+    "note, water_usage, sewer_usage"
+    )
+
     # empties the test table before uploading new data to it
     empty_command = [
         "psql",
         "uhm2023",
         "-c",
-        r"""TRUNCATE TABLE water.water_test;"""
+        r"""TRUNCATE TABLE water.water_staging;"""
     ]
 
     # copies data to test table
@@ -533,7 +539,7 @@ def upload_csv_to_database():
         "psql",
         "uhm2023",
         "-c",
-        rf"""\copy water.water_test(account_no, date, thousands_gal, days, water_charges, sewer_charges, payments, current_charges, water_charges_adjusted, sewer_charges_adjusted, note) FROM '{csv_path}' CSV HEADER;"""
+        rf"""\copy water.water_test({COLS}) FROM '{csv_path}' CSV HEADER;"""
     ]
 
     # checks for duplicates as it inserts into the main table
@@ -543,7 +549,7 @@ def upload_csv_to_database():
         "-c",
         rf"""
         INSERT INTO water.water
-            SELECT * FROM water.water_test
+            SELECT * FROM water.water_staging
             ON CONFLICT (account_no, date) DO NOTHING;
         """
     ]
@@ -554,7 +560,7 @@ def upload_csv_to_database():
         "-c",
         rf"""
         INSERT INTO water.water AS w
-            SELECT * FROM water.water_test
+            SELECT * FROM water.water_staging
             ON CONFLICT (account_no, date) 
             DO UPDATE SET 
                 water_charges_adjusted = EXCLUDED.water_charges_adjusted,
