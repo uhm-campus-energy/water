@@ -539,7 +539,7 @@ def upload_csv_to_database():
         "psql",
         "uhm2023",
         "-c",
-        rf"""\copy water.water_test({COLS}) FROM '{csv_path}' CSV HEADER;"""
+        rf"""\copy water.water_staging({COLS}) FROM '{csv_path}' CSV HEADER;"""
     ]
 
     # checks for duplicates as it inserts into the main table
@@ -638,11 +638,11 @@ def upload_and_archive(source_dir, archive_dir, filename_pattern):
     """
     success = upload_csv_to_database()
 
-    # if not success:
-    #     print("\nSkipping archive step — bills remain in:")
-    #     print(f"  {source_dir}")
-    #     print("Fix the upload issue, then re-run this script.")
-    #     return False
+    if not success:
+        print("\nSkipping archive step — bills remain in:")
+        print(f"  {source_dir}")
+        print("Fix the upload issue, then re-run this script.")
+        return False
 
     print("\nUpload succeeded — proceeding to archive bills.")
     move_bills_to_archive(source_dir, archive_dir, filename_pattern)

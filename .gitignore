@@ -1,0 +1,4 @@
+/bill_archive/**/*.pdf
+/input_bills/**/*.pdf
+/input_bills/*.pdf
+/output/*.csv
