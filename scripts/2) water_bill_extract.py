@@ -61,10 +61,15 @@ def extract_usage_profile(text):
     date_str, thousands_gal, days = match.groups()
     return date_str, int(thousands_gal), int(days)
 
-def extract_sewer_usage(text):
-    matches = re.findall(r"Sewer Volume Charge\s*-\s*([\d\.,]+)\s*Kgal", text)
+# extracts sewer volume charge & water irrigation factor from the back page of the bill
+# both are in sewer usage as the sewer usage should equal water usage
+def extract_sewer_usage(text, water_usage=None):
+    matches = re.findall(
+        r"(?:Sewer Volume Charge|Water Irrigation Factor)\s*-\s*([\d\.,]+)\s*Kgal",
+        text,
+    )
     if not matches:
-        return None
+        return water_usage
     return int(round(sum(float(m.replace(",", "")) for m in matches)))
 
 def extract_fields_from_text(text, filename, back_text=""):
@@ -76,7 +81,8 @@ def extract_fields_from_text(text, filename, back_text=""):
         current_charges = extract_current_charges(text)
         payments = extract_payments(text)
         date_str, thousands_gal, days = extract_usage_profile(text)
-        sewer_usage = extract_sewer_usage(back_text)
+        water_usage = thousands_gal
+        sewer_usage = extract_sewer_usage(back_text, water_usage)
     except Exception as e:
         print(f"Error processing {filename}: {e}")
         return None

@@ -62,6 +62,8 @@ COLUMNS = [
     "water_charges_adjusted",
     "sewer_charges_adjusted",
     "note",
+    "water_usage",
+    "sewer_usage",
 ]
 
 # ── Database (step 0) ─────────────────────────────────────────────────
